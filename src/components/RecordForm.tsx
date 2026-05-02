@@ -30,6 +30,8 @@ export default function RecordForm({
   onUpdate,
   onHistory,
   onSheet,
+  initialRecord,
+  onCancel,
 }: {
   user: User;
   results: StudentResult[];
@@ -37,6 +39,8 @@ export default function RecordForm({
   onUpdate: (updated: StudentResult) => void;
   onHistory: (entry: StudentResult) => void;
   onSheet: (rec: StudentResult) => void;
+  initialRecord?: StudentResult | null;
+  onCancel?: () => void;
 }) {
   const [form, setForm] = useState(blankF());
   const [mode, setMode] = useState<"add" | "edit">("add");
@@ -66,8 +70,11 @@ export default function RecordForm({
     });
   };
 
-  // Expose loadRecord for external use
-  (window as any).__loadRecord = loadRecord;
+  useEffect(() => {
+    if (initialRecord) {
+      loadRecord(initialRecord);
+    }
+  }, [initialRecord]);
 
   const live = calcResult(
     Object.fromEntries(
@@ -511,21 +518,21 @@ export default function RecordForm({
           )}
 
           <div className="mt-10 flex flex-wrap gap-4">
-            {mode === 'add' ? (
-              <button 
-                className="flex items-center gap-2 rounded-md bg-[#1a1a2e] px-8 py-3 text-sm font-bold text-white shadow-md transition-all hover:bg-[#2d2d4e] active:scale-95"
-                onClick={doSave}
-              >
-                <Save size={18} />
-                Save Result
-              </button>
-            ) : (
+            {mode === 'edit' ? (
               <button 
                 className="flex items-center gap-2 rounded-md bg-red-700 px-8 py-3 text-sm font-bold text-white shadow-md transition-all hover:bg-red-800 active:scale-95"
                 onClick={doSave}
               >
                 <RotateCcw size={18} />
                 Update Result
+              </button>
+            ) : (
+              <button 
+                className="flex items-center gap-2 rounded-md bg-[#1a1a2e] px-8 py-3 text-sm font-bold text-white shadow-md transition-all hover:bg-[#2d2d4e] active:scale-95"
+                onClick={doSave}
+              >
+                <Save size={18} />
+                Save Result
               </button>
             )}
             <button 
@@ -534,6 +541,14 @@ export default function RecordForm({
             >
               Reset
             </button>
+            {mode === 'edit' && onCancel && (
+              <button 
+                className="flex items-center gap-2 rounded-md border-2 border-gray-400 px-8 py-3 text-sm font-bold text-gray-600 transition-all hover:bg-gray-100"
+                onClick={onCancel}
+              >
+                Discard Changes
+              </button>
+            )}
           </div>
         </div>
       </div>

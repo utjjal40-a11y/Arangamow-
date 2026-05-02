@@ -37,6 +37,7 @@ export default function App() {
   const [history, setHistory] = useState<StudentResult[]>([]);
   const [sbOpen, setSbOpen] = useState(false);
   const [sheet, setSheet] = useState<StudentResult | null>(null);
+  const [editingRecord, setEditingRecord] = useState<StudentResult | null>(null);
   const [filterCls, setFCls] = useState("");
   const [loading, setLoading] = useState(true);
   const [fbUser, setFbUser] = useState<any>(null);
@@ -147,10 +148,8 @@ export default function App() {
   };
 
   const goEdit = (rec: StudentResult) => {
+    setEditingRecord(rec);
     setPage("record");
-    setTimeout(() => {
-      if ((window as any).__loadRecord) (window as any).__loadRecord(rec);
-    }, 150);
   };
 
   if (!user) return <Login onLogin={handleLogin} />;
@@ -234,7 +233,18 @@ export default function App() {
               transition={{ duration: 0.2 }}
             >
               {page === "dashboard" && <Dashboard results={results} onNav={p => { setPage(p); setSheet(null); }} />}
-              {page === "record" && <RecordForm user={user} results={results} onSave={handleSave} onUpdate={handleUpdate} onHistory={handleHistory} onSheet={(rec) => { setSheet(rec); setPage("results"); }} />}
+              {page === "record" && (
+                <RecordForm 
+                  user={user} 
+                  results={results} 
+                  initialRecord={editingRecord}
+                  onSave={handleSave} 
+                  onUpdate={handleUpdate} 
+                  onHistory={handleHistory} 
+                  onSheet={(rec) => { setSheet(rec); setPage("results"); }} 
+                  onCancel={() => { setEditingRecord(null); setPage("results"); }}
+                />
+              )}
               {page === "results" && (
                 sheet ? <Marksheet rec={sheet} onBack={() => setSheet(null)} /> : 
                 <ResultsList results={results} onDelete={handleDelete} onSheet={setSheet} onEdit={goEdit} initialClass={filterCls} />

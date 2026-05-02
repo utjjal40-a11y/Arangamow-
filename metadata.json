@@ -1,0 +1,6 @@
+{
+  "name": "Arangamow MV School Result System",
+  "description": "A comprehensive result management system for Arangamow MV School, featuring formative and summative assessment tracking, weighted marks calculation, and PDF marksheet generation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

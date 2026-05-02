@@ -80,6 +80,25 @@ export default function RecordForm({
   const bd = live?.bd;
   const ns = form.selectedSubjects.length;
 
+  useEffect(() => {
+    // Auto-check for existing records when Roll, Class, and Session are filled
+    if (form.rollNo.trim() && form.studentClass && form.session) {
+      const ex = results.find(
+        (r) =>
+          r.rollNo.trim().toUpperCase() === form.rollNo.trim().toUpperCase() &&
+          r.studentClass === form.studentClass &&
+          r.session === form.session
+      );
+      if (ex && mode === "add") {
+        loadRecord(ex);
+        setAlert({ 
+          t: "w", 
+          msg: `🔍 Record Found: ${ex.studentName} has existing marks. Switching to Update Mode.` 
+        });
+      }
+    }
+  }, [form.rollNo, form.studentClass, form.session, results]);
+
   const checkDup = () => {
     if (!form.rollNo || !form.studentClass || !form.session) {
       setAlert({ t: "e", msg: "Fill Roll No, Class and Session first." });
@@ -87,16 +106,17 @@ export default function RecordForm({
     }
     const ex = results.find(
       (r) =>
-        r.rollNo === form.rollNo &&
+        r.rollNo.trim().toUpperCase() === form.rollNo.trim().toUpperCase() &&
         r.studentClass === form.studentClass &&
         r.session === form.session
     );
     if (ex) {
       loadRecord(ex);
+      setAlert({ t: "s", msg: `✅ Found: ${ex.studentName}. Everything is loaded for update.` });
     } else {
       setMode("add");
       setEid(null);
-      setAlert({ t: "i", msg: "✅ No existing record found — New Entry Mode." });
+      setAlert({ t: "i", msg: "🆕 No existing record found — Ready for new entry." });
     }
   };
 
@@ -164,7 +184,7 @@ export default function RecordForm({
     if (mode === "add") {
       const dup = results.find(
         (r) =>
-          r.rollNo === form.rollNo &&
+          r.rollNo.trim().toUpperCase() === form.rollNo.trim().toUpperCase() &&
           r.studentClass === form.studentClass &&
           r.session === form.session
       );

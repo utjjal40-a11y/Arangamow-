@@ -1,9 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { 
   LayoutDashboard, ClipboardList, Database, 
   History, Users, LogOut, Menu, X, Calendar
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { doc, getDocFromServer } from 'firebase/firestore';
+import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
+import { db, auth } from './lib/firebase';
 
 import { SCHOOL, ESTD } from "./constants";
 import { Page, StudentResult, User } from "./types";
@@ -15,33 +18,14 @@ import ResultsList from "./components/ResultsList";
 import ClassWiseResult from "./components/ClassWise";
 import HistoryView from "./components/History";
 import Marksheet from "./components/Marksheet";
+import { firebaseService } from "./services/firebaseService";
 
 const USERS: User[] = [
   { id: "u1", name: "Arangamow MV School", role: "admin", u: "admin", p: "admin123" },
   { id: "u2", name: "Teacher Borah", role: "teacher", u: "teacher1", p: "teach123" },
 ];
 
-const STORAGE_KEY = "amvs_results_v2";
-const HISTORY_KEY = "amvs_history_v2";
 const USER_KEY = "amvs_user_session";
-
-const loadFromStorage = async (): Promise<StudentResult[]> => {
-  const r = localStorage.getItem(STORAGE_KEY);
-  return r ? JSON.parse(r) : [];
-};
-
-const saveToStorage = async (data: StudentResult[]) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-};
-
-const loadHistoryFromStorage = async (): Promise<StudentResult[]> => {
-  const r = localStorage.getItem(HISTORY_KEY);
-  return r ? JSON.parse(r) : [];
-};
-
-const saveHistoryToStorage = async (data: StudentResult[]) => {
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(data));
-};
 
 export default function App() {
   const [user, setUser] = useState<User | null>(() => {
@@ -55,14 +39,85 @@ export default function App() {
   const [sheet, setSheet] = useState<StudentResult | null>(null);
   const [filterCls, setFCls] = useState("");
   const [loading, setLoading] = useState(true);
+  const [fbUser, setFbUser] = useState<any>(null);
+
+  const authAttempted = useRef(false);
 
   useEffect(() => {
-    Promise.all([loadFromStorage(), loadHistoryFromStorage()]).then(([r, h]) => {
-      setResults(r);
-      setHistory(h);
+    const unsubAuth = onAuthStateChanged(auth, (u) => {
+      setFbUser(u);
+      if (!u && user && !authAttempted.current) {
+        authAttempted.current = true;
+        signInAnonymously(auth).catch((err) => {
+          console.warn("Background Firebase Auth failed:", err.message);
+        });
+      }
+    });
+    return () => unsubAuth();
+  }, [user]);
+
+  useEffect(() => {
+    // 1. Test Connection
+    const test = async () => {
+      try {
+        await getDocFromServer(doc(db, 'test', 'connection'));
+      } catch (error) {
+        console.error("Firebase connection test failed:", error);
+      }
+    };
+    test();
+
+    // 2. Subscribe to Real-time data
+    const unsubResults = firebaseService.subscribeResults(async (data) => {
+      // Migration logic: Sync local storage to Firebase
+      const local = localStorage.getItem("amvs_results_v2");
+      if (local) {
+        const parsed = JSON.parse(local) as StudentResult[];
+        if (parsed.length > 0) {
+          console.log("Checking for local records to sync to school database...");
+          let migrated = 0;
+          for (const r of parsed) {
+            // Check if this specific result (based on Roll, Class, Session) exists in fetched data
+            const exists = data.find(f => 
+              f.rollNo.trim().toUpperCase() === r.rollNo.trim().toUpperCase() && 
+              f.studentClass === r.studentClass && 
+              f.session === r.session
+            );
+            
+            if (!exists) {
+              await firebaseService.saveResult(r).catch(console.error);
+              migrated++;
+            }
+          }
+          if (migrated > 0) console.log(`✓ Sync complete: ${migrated} records pushed to central database.`);
+          localStorage.removeItem("amvs_results_v2");
+        }
+      }
+      
+      setResults(data);
       setLoading(false);
     });
-  }, []);
+
+    const unsubHistory = firebaseService.subscribeHistory(async (data) => {
+      const local = localStorage.getItem("amvs_history_v2");
+      if (local) {
+        const parsed = JSON.parse(local) as StudentResult[];
+        if (parsed.length > 0) {
+          for (const h of parsed) {
+            // History is usually unique by timestamp/ID, but let's just push for now
+            await firebaseService.addHistory(h).catch(console.error);
+          }
+          localStorage.removeItem("amvs_history_v2");
+        }
+      }
+      setHistory(data);
+    });
+
+    return () => {
+      unsubResults();
+      unsubHistory();
+    };
+  }, [fbUser]); // Keep dependency so if auth state changes, we might refresh, but we don't 'return' early anymore
 
   const handleLogin = (u: User) => {
     setUser(u);
@@ -72,38 +127,23 @@ export default function App() {
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem(USER_KEY);
+    auth.signOut().catch(console.error);
   };
 
-  const handleSave = (rec: StudentResult) => {
-    setResults((prev) => {
-      const next = [...prev, rec];
-      saveToStorage(next);
-      return next;
-    });
+  const handleSave = async (rec: StudentResult) => {
+    await firebaseService.saveResult(rec);
   };
 
-  const handleUpdate = (updated: StudentResult) => {
-    setResults((prev) => {
-      const next = prev.map((r) => (r.id === updated.id ? updated : r));
-      saveToStorage(next);
-      return next;
-    });
+  const handleUpdate = async (updated: StudentResult) => {
+    await firebaseService.updateResult(updated);
   };
 
-  const handleDelete = (id: string) => {
-    setResults((prev) => {
-      const next = prev.filter((r) => r.id !== id);
-      saveToStorage(next);
-      return next;
-    });
+  const handleDelete = async (id: string) => {
+    await firebaseService.deleteResult(id);
   };
 
-  const handleHistory = (entry: StudentResult) => {
-    setHistory((prev) => {
-      const next = [...prev, entry];
-      saveHistoryToStorage(next);
-      return next;
-    });
+  const handleHistory = async (entry: StudentResult) => {
+    await firebaseService.addHistory(entry);
   };
 
   const goEdit = (rec: StudentResult) => {

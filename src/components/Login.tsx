@@ -2,6 +2,8 @@ import { useState } from "react";
 import { SCHOOL, ESTD } from "../constants";
 import { User } from "../types";
 import { LogIn, School } from "lucide-react";
+import { signInAnonymously } from "firebase/auth";
+import { auth } from "../lib/firebase";
 
 const USERS: User[] = [
   { id: "u1", name: "Arangamow MV School", role: "admin", u: "admin", p: "admin123" },
@@ -13,10 +15,18 @@ export default function Login({ onLogin }: { onLogin: (user: User) => void }) {
   const [p, setP] = useState("");
   const [err, setErr] = useState("");
 
-  const go = () => {
+  const go = async () => {
     const f = USERS.find((x) => x.u === u && x.p === p);
-    if (f) onLogin(f);
-    else setErr("Invalid credentials.");
+    if (f) {
+      try {
+        await signInAnonymously(auth);
+      } catch (err: any) {
+        console.warn("Firebase Auth blocked by console settings, using guest mode. (Enable Anonymous Auth in Firebase Console to fix)");
+      }
+      onLogin(f);
+    } else {
+      setErr("Invalid credentials.");
+    }
   };
 
   return (

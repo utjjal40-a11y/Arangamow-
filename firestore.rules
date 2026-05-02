@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidStudentResult(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.studentName is string && data.studentName.size() <= 200
+        && data.studentClass is string && data.studentClass.size() <= 50
+        && data.rollNo is string && data.rollNo.size() <= 20
+        && data.session is string && data.session.size() <= 20
+        && data.selectedSubjects is list && data.selectedSubjects.size() <= 20
+        && data.subjectMarks is map
+        && data.updatedBy is string && data.updatedBy.size() <= 100
+        && data.updatedAt is string && data.updatedAt.size() <= 100;
+    }
+
+    match /results/{resultId} {
+      allow read, write: if true;
+    }
+
+    match /history/{historyId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if false;
+    }
+
+    // Test connection path
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "entities": {
+    "StudentResult": {
+      "title": "Student Result",
+      "description": "Records of student marks and calculated results.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "studentName": { "type": "string" },
+        "studentClass": { "type": "string" },
+        "rollNo": { "type": "string" },
+        "session": { "type": "string" },
+        "selectedSubjects": { 
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "subjectMarks": { "type": "object" },
+        "gunotsob": { "type": "string" },
+        "result": { "type": "object" },
+        "updatedBy": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "studentName", "studentClass", "rollNo", "session"]
+    }
+  },
+  "firestore": {
+    "/results/{resultId}": {
+      "schema": "StudentResult",
+      "description": "Active student results."
+    },
+    "/history/{historyId}": {
+      "schema": "StudentResult",
+      "description": "Audit trail of student result changes."
+    }
+  }
+}

@@ -55,7 +55,7 @@ export default function Login({ onLogin }: { onLogin: (user: User) => void }) {
               className="w-full rounded-md border border-[#d4c9b0] bg-[#f5f3ee] px-3 py-2 text-sm text-[#1a1a2e] focus:border-[#2d2d4e] focus:bg-white focus:outline-none"
               value={u}
               onChange={(e) => setU(e.target.value)}
-              placeholder="admin or teacher1"
+              placeholder="Enter your username"
               onKeyDown={(e) => e.key === "Enter" && go()}
             />
           </div>
@@ -82,9 +82,7 @@ export default function Login({ onLogin }: { onLogin: (user: User) => void }) {
           </button>
         </div>
 
-        <p className="mt-6 text-center text-[10px] text-gray-400">
-          admin/admin123 · teacher1/teach123
-        </p>
+
       </div>
     </div>
   );
